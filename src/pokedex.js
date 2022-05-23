@@ -18,16 +18,27 @@ const typeColor = {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
+    document.querySelector('#favorites').style.display = 'none';
     let url = 'https://pokeapi.co/api/v2/pokemon/';
     const form = document.getElementById('search-form');
-    const cardDiv = document.getElementById('pokemon-card');
+    const cardDiv = document.querySelector('.pokemon-card');
+    const favorites = document.querySelector('#favorites');
     let isFavorite = false;
 
+    document.getElementById('favorites-btn').addEventListener('click', (event) => {
+        console.log('click');
+        cardDiv.style.display = 'none';
+        document.querySelector('#favorites').style.display = 'block';
+        console.log(document.querySelector('#favorites'));
+        showFavorites();
+    })
 
     form.addEventListener('submit', (event) => {
         //create pokemon
         event.preventDefault();
-        removePreviousPokemonCard();
+        removePreviousPokemonCard(cardDiv);
+        document.querySelector('#favorites').style.display = 'none';
+        cardDiv.style.display = 'block';
         pokemonURL = url + event.target.pokemon.value;
         fetchPokemon(pokemonURL);
     });
@@ -38,13 +49,12 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log(pokemon);
             createPokemon(pokemon);
         })
-        .catch((error) => {
+        .catch(() => {
             alert('Pokemon does not exist');
         });
     }
 
     function createPokemon(pokemon) {
-        isFavorite = true;
         const hp = document.createElement('p');
         const hpSpan = document.createElement('span');
         const pokemonImg = document.createElement('img');
@@ -136,15 +146,76 @@ document.addEventListener('DOMContentLoaded', () => {
         addToFavBtn.innerHTML = 'Add to Favorites';
         addToFavBtn.style.color = themeColor;
         addToFavBtn.addEventListener('click', () => {
-            addToFavorites(pokemon);
+            addToFavorites(pokemon, isFavorite);
         });
 
         cardDiv.appendChild(addToFavBtn);
     }
 
-    function removePreviousPokemonCard() {
-        while(cardDiv.firstChild) {
-            cardDiv.removeChild(cardDiv.firstChild);
+    function addToFavorites(pokemon) {
+        const configurationObject = {
+            method: 'POST',
+            headers: {
+                "Content-Type": "application/json",
+                Accept: "application/json"
+            },
+            body: JSON.stringify({
+                hp: pokemon.stats[0].base_stat,
+                img: pokemon.sprites.other['official-artwork'].front_default,
+                name: pokemon.name,
+                types: pokemon.types,
+                attack: pokemon.stats[1].base_stat,
+                defense: pokemon.stats[2].base_stat,
+                speed: pokemon.stats[5].base_stat,
+                themeColor: typeColor[pokemon.types[0].type.name]
+            })
+        }
+        fetch('http://localhost:3000/favorites', configurationObject)
+            .then(response => response.json())
+            .then(pokemon => {
+                console.log(pokemon);
+            });
+    }
+
+    function showFavorites() {
+        removePreviousPokemonCard(favorites);
+        fetch('http://localhost:3000/favorites')
+            .then(response => response.json())
+            .then(pokemons => {
+                pokemons.forEach(pokemon => {
+                    const div = document.createElement('div');
+                    const pokemonName = document.createElement('h2');
+                    const img = document.createElement('img');
+                    const btn = document.createElement('button');
+
+                    div.className = 'card';
+                    pokemonName.innerHTML = pokemon.name;
+
+                    img.src = pokemon.img;
+
+                    btn.innerHTML = 'Delete';
+                    btn.style.color = pokemon.themeColor;
+                    btn.addEventListener('click', () => {
+                        deletePokemon(pokemon.id);
+                    })
+
+                    div.appendChild(pokemonName);
+                    div.appendChild(img);
+                    div.appendChild(btn);
+                    favorites.appendChild(div);
+                })
+            });
+    }
+
+    function deletePokemon(id) {
+        fetch(`http://localhost:3000/favorites/${id}`, {method: 'DELETE'})
+            .then(showFavorites());
+        
+    }
+
+    function removePreviousPokemonCard(div) {
+        while(div.firstChild) {
+            div.removeChild(div.firstChild);
         }
     }
 });
